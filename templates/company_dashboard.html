@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Company Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Company Dashboard</h2>
+            <a href="/logout" class="btn btn-danger">Logout</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <h4 class="mb-3">Welcome, {{ company.company_name }}</h4>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-white">
+                    <h5>Company Profile</h5>
+                    <p><strong>Company Name:</strong> {{ company.company_name }}</p>
+                    <p><strong>HR Name:</strong> {{ company.hr_name }}</p>
+                    <p><strong>Email:</strong> {{ company.email }}</p>
+                    <p><strong>Phone:</strong> {{ company.phone }}</p>
+                    <p><strong>Website:</strong> {{ company.website }}</p>
+                    <p><strong>Industry Type:</strong> {{ company.industry_type }}</p>
+                    <p><strong>Location:</strong> {{ company.location }}</p>
+                    <p><strong>Description:</strong> {{ company.description }}</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-white">
+                    <h5>Post a Job</h5>
+                    <form method="POST" action="/post_job">
+                        <div class="mb-2">
+                            <input type="text" name="title" class="form-control" placeholder="Job Title" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="role_name" class="form-control" placeholder="Role" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="package" class="form-control" placeholder="Package" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="number" step="0.01" name="eligibility_cgpa" class="form-control" placeholder="Eligibility CGPA" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="location" class="form-control" placeholder="Location" required>
+                        </div>
+                        <div class="mb-2">
+                            <textarea name="description" class="form-control" rows="3" placeholder="Job Description"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Post Job</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <h4 class="mb-3">My Posted Jobs</h4>
+        {% if jobs %}
+            <div class="row">
+                {% for job in jobs %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                <h5>{{ job.title }}</h5>
+                                <p><strong>Role:</strong> {{ job.role }}</p>
+                                <p><strong>Package:</strong> {{ job.package }}</p>
+                                <p><strong>Eligibility CGPA:</strong> {{ job.eligibility_cgpa }}</p>
+                                <p><strong>Location:</strong> {{ job.location }}</p>
+                                <p><strong>Description:</strong> {{ job.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-warning">No jobs posted yet.</div>
+        {% endif %}
+
+        <h4 class="mb-3 mt-4">Applicants</h4>
+        {% if applicants_data %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Job Title</th>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Branch</th>
+                            <th>CGPA</th>
+                            <th>Skills</th>
+                            <th>Resume</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for applicant in applicants_data %}
+                            <tr>
+                                <td>{{ applicant.job_title }}</td>
+                                <td>{{ applicant.student_name }}</td>
+                                <td>{{ applicant.student_email }}</td>
+                                <td>{{ applicant.branch }}</td>
+                                <td>{{ applicant.cgpa }}</td>
+                                <td>{{ applicant.skills }}</td>
+                                <td>
+                                    {% if applicant.resume_filename %}
+                                        <a href="{{ url_for('static', filename='uploads/' + applicant.resume_filename) }}" target="_blank" class="btn btn-sm btn-primary">View Resume</a>
+                                    {% else %}
+                                        No Resume
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No applicants yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

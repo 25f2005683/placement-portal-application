@@ -1,5 +1,5 @@
 body {
-    background-color: #f8f9fa;
+    background-color: white;
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
@@ -19,7 +19,7 @@ body {
     background-color: white;
     padding: 32px;
     border-radius: 18px;
-    border: 1px solid #dee2e6;
+    border: 1px solid whitesmoke;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
