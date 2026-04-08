@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <title>Student Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="bg-light">
@@ -26,7 +26,7 @@
 
         <div class="row mb-4">
             <div class="col-md-6">
-                <div class="border rounded p-3 bg-white">
+                <div class="border rounded p-3 bg-white h-100">
                     <h5>My Profile</h5>
                     <p><strong>Name:</strong> {{ student.full_name }}</p>
                     <p><strong>Email:</strong> {{ student.email }}</p>
@@ -35,20 +35,37 @@
                     <p><strong>Year:</strong> {{ student.year }}</p>
                     <p><strong>CGPA:</strong> {{ student.cgpa }}</p>
                     <p><strong>Phone:</strong> {{ student.phone }}</p>
+                    <p><strong>Skills:</strong> {{ student.skills if student.skills else "N/A" }}</p>
+                    <p>
+                        <strong>Resume:</strong>
+                        {% if student.resume_filename %}
+                            <a href="{{ url_for('static', filename='uploads/' + student.resume_filename) }}" target="_blank" class="btn btn-sm btn-primary">View Resume</a>
+                        {% else %}
+                            <span class="text-danger">No Resume Uploaded</span>
+                        {% endif %}
+                    </p>
                 </div>
             </div>
 
             <div class="col-md-6">
-                <div class="border rounded p-3 bg-white">
+                <div class="border rounded p-3 bg-white h-100">
                     <h5>My Applications</h5>
-                    {% if applied_job_ids %}
+                    {% if applications %}
                         <ul class="list-group">
-                            {% for job in jobs %}
-                                {% if job.id in applied_job_ids %}
-                                    <li class="list-group-item">
-                                        {{ job.title }} - {{ job.role }}
-                                    </li>
-                                {% endif %}
+                            {% for application in applications %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        {{ application.job.title }} - {{ application.job.role }}
+                                    </span>
+                                    <span class="badge 
+                                        {% if application.status == 'Applied' %}bg-primary
+                                        {% elif application.status == 'Shortlisted' %}bg-warning text-dark
+                                        {% elif application.status == 'Selected' %}bg-success
+                                        {% elif application.status == 'Rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ application.status }}
+                                    </span>
+                                </li>
                             {% endfor %}
                         </ul>
                     {% else %}
@@ -69,9 +86,11 @@
                                 <h5 class="card-title">{{ job.title }}</h5>
                                 <p><strong>Role:</strong> {{ job.role }}</p>
                                 <p><strong>Package:</strong> {{ job.package }}</p>
+                                <p><strong>Required Skills:</strong> {{ job.required_skills if job.required_skills else "N/A" }}</p>
+                                <p><strong>Experience:</strong> {{ job.experience if job.experience else "N/A" }}</p>
                                 <p><strong>Eligibility CGPA:</strong> {{ job.eligibility_cgpa }}</p>
                                 <p><strong>Location:</strong> {{ job.location }}</p>
-                                <p><strong>Description:</strong> {{ job.description }}</p>
+                                <p><strong>Description:</strong> {{ job.description if job.description else "N/A" }}</p>
 
                                 {% if job.id in applied_job_ids %}
                                     <button class="btn btn-secondary" disabled>Already Applied</button>

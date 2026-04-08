@@ -45,6 +45,7 @@
                             <th>Industry</th>
                             <th>Location</th>
                             <th>Approved</th>
+                            <th>Phone</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -57,6 +58,7 @@
                                 <td>{{ company.industry_type }}</td>
                                 <td>{{ company.location }}</td>
                                 <td>{{ company.approved }}</td>
+                                <td>{{ company.phone }}</td>
                                 <td>
                                     {% if not company.approved %}
                                         <a href="/approve_company/{{ company.id }}" class="btn btn-success btn-sm">Approve</a>
@@ -86,6 +88,7 @@
                             <th>Branch</th>
                             <th>Year</th>
                             <th>CGPA</th>
+                            <th>Phone</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -98,6 +101,7 @@
                                 <td>{{ student.branch }}</td>
                                 <td>{{ student.year }}</td>
                                 <td>{{ student.cgpa }}</td>
+                                <td>{{ student.phone }}</td>
                                 <td>
                                     <a href="/deactivate_student/{{ student.id }}" class="btn btn-danger btn-sm">Deactivate</a>
                                 </td>
