@@ -26,6 +26,7 @@ class Student(db.Model):
     phone = db.Column(db.String(15), nullable=False)
     skills = db.Column(db.String(300))
     resume_filename = db.Column(db.String(300))
+    is_active = db.Column(db.Boolean, default=True)
     applications = db.relationship("Application", backref="student", lazy=True, cascade="all, delete-orphan")
 
 class Company(db.Model):
@@ -40,6 +41,7 @@ class Company(db.Model):
     location = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     approved = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
     jobs = db.relationship("Job", backref="company", lazy=True, cascade="all, delete-orphan")
 
 class Job(db.Model):
@@ -51,6 +53,8 @@ class Job(db.Model):
     location = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    approved = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(20), default="Pending")
     applications = db.relationship("Application", backref="job", lazy=True, cascade="all, delete-orphan")
 
 class Application(db.Model):
@@ -74,18 +78,18 @@ def login():
 
         if role == "student":
             student = Student.query.filter_by(email=email, password=password).first()
-            if student:
+            if student and student.is_active:
                 session.clear()
                 session["student_id"] = student.id
                 session["role"] = "student"
                 return redirect(url_for("student_dashboard"))
             else:
-                flash("Invalid student email or password")
+                flash("Invalid or inactive student")
                 return redirect(url_for("login"))
 
         elif role == "company":
             company = Company.query.filter_by(email=email, password=password).first()
-            if company:
+            if company and company.is_active:
                 if company.approved:
                     session.clear()
                     session["company_id"] = company.id
@@ -95,7 +99,7 @@ def login():
                     flash("Company not approved by admin yet")
                     return redirect(url_for("login"))
             else:
-                flash("Invalid company email or password")
+                flash("Invalid or inactive company")
                 return redirect(url_for("login"))
 
         elif role == "admin":
@@ -215,7 +219,7 @@ def student_dashboard():
         flash("Student not found")
         return redirect(url_for("login"))
 
-    jobs = Job.query.all()
+    jobs = Job.query.filter_by(approved=True).all()
     applied_job_ids = [application.job_id for application in student.applications]
 
     return render_template(
@@ -275,7 +279,11 @@ def admin_dashboard():
         companies=companies,
         students=students,
         jobs=jobs,
-        applications=applications
+        applications=applications,
+        total_students=len(students),
+        total_companies=len(companies),
+        total_jobs=len(jobs),
+        total_applications=len(applications)
     )
 
 @app.route("/approve_company/<int:company_id>")
@@ -289,6 +297,54 @@ def approve_company(company_id):
     db.session.commit()
     flash("Company approved successfully")
     return redirect(url_for("admin_dashboard"))
+
+@app.route("/approve_job/<int:job_id>")
+def approve_job(job_id):
+    job = Job.query.get_or_404(job_id)
+    job.approved = True
+    job.status = "Approved"
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/deactivate_company/<int:id>")
+def deactivate_company(id):
+    company = Company.query.get(id)
+    company.is_active = False
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/deactivate_student/<int:id>")
+def deactivate_student(id):
+    student = Student.query.get(id)
+    student.is_active = False
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/search")
+def search():
+    query = request.args.get("query")
+
+    students = Student.query.filter(
+        Student.full_name.contains(query) |
+        Student.email.contains(query) |
+        Student.roll_number.contains(query)
+    ).all()
+
+    companies = Company.query.filter(
+        Company.company_name.contains(query)
+    ).all()
+
+    return render_template(
+        "admin_dashboard.html",
+        students=students,
+        companies=companies,
+        jobs=Job.query.all(),
+        applications=Application.query.all(),
+        total_students=len(students),
+        total_companies=len(companies),
+        total_jobs=len(Job.query.all()),
+        total_applications=len(Application.query.all())
+    )
 
 @app.route("/post_job", methods=["POST"])
 def post_job():
