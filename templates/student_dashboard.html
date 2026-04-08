@@ -23,6 +23,22 @@
         {% endwith %}
 
         <h4 class="mb-3">Welcome, {{ student.full_name }}</h4>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5>Notifications</h5>
+                {% if notifications %}
+                    <ul class="list-group">
+                        {% for note in notifications %}
+                            <li class="list-group-item">
+                                {{ note.message }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">No new notifications.</p>
+                {% endif %}
+            </div>
+        </div>
 
         <div class="row mb-4">
             <div class="col-md-6">
@@ -44,6 +60,7 @@
                             <span class="text-danger">No Resume Uploaded</span>
                         {% endif %}
                     </p>
+                    <a href="/edit_profile" class="btn btn-warning btn-sm mt-2">Edit Profile</a>
                 </div>
             </div>
 
@@ -75,7 +92,17 @@
             </div>
         </div>
 
-        <h4 class="mb-3">Available Jobs</h4>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Available Jobs</h4>
+        </div>
+
+        <form method="GET" action="{{ url_for('student_dashboard') }}" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="query" class="form-control" placeholder="Search by company, position, or skills" value="{{ query }}">
+                <button type="submit" class="btn btn-primary">Search</button>
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Reset</a>
+            </div>
+        </form>
 
         {% if jobs %}
             <div class="row">
@@ -84,6 +111,7 @@
                         <div class="card h-100 shadow-sm">
                             <div class="card-body">
                                 <h5 class="card-title">{{ job.title }}</h5>
+                                <p><strong>Company:</strong> {{ job.company.company_name }}</p>
                                 <p><strong>Role:</strong> {{ job.role }}</p>
                                 <p><strong>Package:</strong> {{ job.package }}</p>
                                 <p><strong>Required Skills:</strong> {{ job.required_skills if job.required_skills else "N/A" }}</p>

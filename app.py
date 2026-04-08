@@ -28,6 +28,7 @@ class Student(db.Model):
     resume_filename = db.Column(db.String(300))
     is_active = db.Column(db.Boolean, default=True)
     applications = db.relationship("Application", backref="student", lazy=True, cascade="all, delete-orphan")
+    notifications = db.relationship("Notification", backref="student", lazy=True, cascade="all, delete-orphan")
 
 class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,6 +65,13 @@ class Application(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey("job.id"), nullable=False)
     status = db.Column(db.String(20), default="Applied") 
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False)
+    message = db.Column(db.String(300), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+
 with app.app_context():
     db.create_all()
 
@@ -221,16 +229,36 @@ def student_dashboard():
         flash("Student not found")
         return redirect(url_for("login"))
 
-    jobs = Job.query.filter_by(approved=True, status="Active").all()
+    query = request.args.get("query", "").strip()
+
+    jobs_query = Job.query.join(Company).filter(
+        Job.approved == True,
+        Job.status == "Active"
+    )
+
+    if query:
+        jobs_query = jobs_query.filter(
+            Company.company_name.ilike(f"%{query}%") |
+            Job.title.ilike(f"%{query}%") |
+            Job.role.ilike(f"%{query}%") |
+            Job.required_skills.ilike(f"%{query}%")
+        )
+
+    jobs = jobs_query.all()
+
     applications = Application.query.filter_by(student_id=student.id).all()
     applied_job_ids = [application.job_id for application in applications]
+
+    notifications = Notification.query.filter_by(student_id=student.id).order_by(Notification.id.desc()).all()
 
     return render_template(
         "student_dashboard.html",
         student=student,
         jobs=jobs,
         applications=applications,
-        applied_job_ids=applied_job_ids
+        applied_job_ids=applied_job_ids,
+        notifications=notifications,
+        query=query
     )
 
 @app.route("/company_dashboard")
@@ -441,6 +469,37 @@ def apply_job(job_id):
     flash("Applied successfully")
     return redirect(url_for("student_dashboard"))
 
+@app.route("/edit_profile", methods=["GET", "POST"])
+def edit_profile():
+    if session.get("role") != "student":
+        flash("Please login as student")
+        return redirect(url_for("login"))
+
+    student = Student.query.get(session.get("student_id"))
+    if not student:
+        flash("Student not found")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        student.full_name = request.form["full_name"]
+        student.phone = request.form["phone"]
+        student.branch = request.form["branch"]
+        student.year = int(request.form["year"])
+        student.cgpa = float(request.form["cgpa"])
+        student.skills = request.form.get("skills")
+
+        resume = request.files.get("resume")
+        if resume and resume.filename:
+            resume_filename = secure_filename(resume.filename)
+            resume.save(os.path.join(app.config["UPLOAD_FOLDER"], resume_filename))
+            student.resume_filename = resume_filename
+
+        db.session.commit()
+        flash("Profile updated successfully")
+        return redirect(url_for("student_dashboard"))
+
+    return render_template("edit_profile.html", student=student)
+
 @app.route("/logout")
 def logout():
     session.clear()
@@ -512,6 +571,13 @@ def shortlist(application_id):
         return redirect(url_for("company_dashboard"))
 
     application.status = "Shortlisted"
+
+    notification = Notification(
+        student_id=application.student_id,
+        message=f"Your application for '{job.title}' has been shortlisted."
+    )
+    db.session.add(notification)
+
     db.session.commit()
     flash("Application shortlisted")
     return redirect(url_for("view_applicants", job_id=job.id))
@@ -530,6 +596,13 @@ def select_application(application_id):
         return redirect(url_for("company_dashboard"))
 
     application.status = "Selected"
+
+    notification = Notification(
+        student_id=application.student_id,
+        message=f"Congratulations! You have been selected for '{job.title}'."
+    )
+    db.session.add(notification)
+
     db.session.commit()
     flash("Application selected")
     return redirect(url_for("view_applicants", job_id=job.id))
@@ -548,6 +621,13 @@ def reject(application_id):
         return redirect(url_for("company_dashboard"))
 
     application.status = "Rejected"
+
+    notification = Notification(
+        student_id=application.student_id,
+        message=f"Your application for '{job.title}' has been rejected."
+    )
+    db.session.add(notification)
+
     db.session.commit()
     flash("Application rejected")
     return redirect(url_for("view_applicants", job_id=job.id))
