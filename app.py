@@ -64,7 +64,12 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey("job.id"), nullable=False)
-    status = db.Column(db.String(20), default="Applied") 
+    status = db.Column(db.String(20), default="Applied")
+    applied_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "job_id", name="unique_student_job_application"),
+    )
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -229,11 +234,18 @@ def student_dashboard():
         flash("Student not found")
         return redirect(url_for("login"))
 
+    if not student.is_active:
+        flash("Your account is inactive")
+        session.clear()
+        return redirect(url_for("login"))
+
     query = request.args.get("query", "").strip()
 
     jobs_query = Job.query.join(Company).filter(
         Job.approved == True,
-        Job.status == "Active"
+        Job.status == "Active",
+        Company.approved == True,
+        Company.is_active == True
     )
 
     if query:
@@ -270,6 +282,16 @@ def company_dashboard():
     company = Company.query.get(session.get("company_id"))
     if not company:
         flash("Company not found")
+        return redirect(url_for("login"))
+
+    if not company.is_active:
+        flash("Your company account is inactive")
+        session.clear()
+        return redirect(url_for("login"))
+
+    if not company.approved:
+        flash("Your company is not approved")
+        session.clear()
         return redirect(url_for("login"))
 
     jobs = company.jobs
@@ -327,6 +349,11 @@ def approve_company(company_id):
         return redirect(url_for("login"))
 
     company = Company.query.get_or_404(company_id)
+
+    if company.approved:
+        flash("Company is already approved")
+        return redirect(url_for("admin_dashboard"))
+
     company.approved = True
     db.session.commit()
     flash("Company approved successfully")
@@ -340,6 +367,11 @@ def approve_job(job_id):
         return redirect(url_for("login"))
 
     job = Job.query.get_or_404(job_id)
+
+    if job.approved:
+        flash("Job is already approved")
+        return redirect(url_for("admin_dashboard"))
+
     job.approved = True
     job.status = "Active"
     db.session.commit()
@@ -353,6 +385,11 @@ def deactivate_student(id):
         return redirect(url_for("login"))
 
     student = Student.query.get_or_404(id)
+
+    if not student.is_active:
+        flash("Student is already inactive")
+        return redirect(url_for("admin_dashboard"))
+
     student.is_active = False
     db.session.commit()
     flash("Student deactivated successfully")
@@ -365,6 +402,11 @@ def deactivate_company(id):
         return redirect(url_for("login"))
 
     company = Company.query.get_or_404(id)
+
+    if not company.is_active:
+        flash("Company is already inactive")
+        return redirect(url_for("admin_dashboard"))
+
     company.is_active = False
     db.session.commit()
     flash("Company deactivated successfully")
@@ -409,6 +451,15 @@ def post_job():
         flash("Company not found")
         return redirect(url_for("login"))
 
+    if not company.is_active:
+        flash("Your company account is inactive")
+        session.clear()
+        return redirect(url_for("login"))
+
+    if not company.approved:
+        flash("Only approved companies can post jobs")
+        return redirect(url_for("company_dashboard"))
+
     title = request.form["title"]
     role = request.form["role_name"]
     package = request.form["package"]
@@ -450,8 +501,17 @@ def apply_job(job_id):
         flash("Student not found")
         return redirect(url_for("login"))
 
+    if not student.is_active:
+        flash("Your account is inactive")
+        session.clear()
+        return redirect(url_for("login"))
+
     if not job.approved or job.status != "Active":
         flash("This job is not available for application")
+        return redirect(url_for("student_dashboard"))
+    
+    if not job.company.approved or not job.company.is_active:
+        flash("This company is not approved or active")
         return redirect(url_for("student_dashboard"))
 
     existing_application = Application.query.filter_by(student_id=student.id, job_id=job.id).first()
@@ -469,6 +529,26 @@ def apply_job(job_id):
     flash("Applied successfully")
     return redirect(url_for("student_dashboard"))
 
+@app.route("/application_history")
+def application_history():
+    if session.get("role") != "student":
+        flash("Please login as student")
+        return redirect(url_for("login"))
+
+    student = Student.query.get(session.get("student_id"))
+    if not student:
+        flash("Student not found")
+        return redirect(url_for("login"))
+    
+    if not student.is_active:
+        flash("Your account is inactive")
+        session.clear()
+        return redirect(url_for("login"))
+
+    applications = Application.query.filter_by(student_id=student.id).all()
+
+    return render_template("application_history.html", student=student, applications=applications)
+
 @app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
     if session.get("role") != "student":
@@ -478,6 +558,11 @@ def edit_profile():
     student = Student.query.get(session.get("student_id"))
     if not student:
         flash("Student not found")
+        return redirect(url_for("login"))
+    
+    if not student.is_active:
+        flash("Your account is inactive")
+        session.clear()
         return redirect(url_for("login"))
 
     if request.method == "POST":
@@ -513,6 +598,11 @@ def view_applicants(job_id):
         return redirect(url_for("login"))
 
     job = Job.query.get_or_404(job_id)
+    company = Company.query.get(session.get("company_id"))
+    if not company or not company.is_active or not company.approved:
+        flash("Your company account is inactive or not approved")
+        session.clear()
+        return redirect(url_for("login"))
 
     if job.company_id != session.get("company_id"):
         flash("Unauthorized access")
@@ -537,6 +627,55 @@ def view_applicants(job_id):
 
     return render_template("view_applicants.html", job=job, applicants=applicants)
 
+@app.route("/update_application_status/<int:application_id>/<string:new_status>")
+def update_application_status(application_id, new_status):
+    if session.get("role") not in ["company", "admin"]:
+        flash("Unauthorized access")
+        return redirect(url_for("login"))
+
+    valid_statuses = ["Applied", "Shortlisted", "Interview", "Rejected", "Placed"]
+
+    if new_status not in valid_statuses:
+        flash("Invalid application status")
+        if session.get("role") == "admin":
+            return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("company_dashboard"))
+
+    application = Application.query.get_or_404(application_id)
+    job = Job.query.get_or_404(application.job_id)
+
+    if session.get("role") == "company":
+        if job.company_id != session.get("company_id"):
+            flash("You cannot update this application")
+            return redirect(url_for("company_dashboard"))
+
+    application.status = new_status
+
+    message = None
+    if new_status == "Shortlisted":
+        message = f"Your application for '{job.title}' has been shortlisted."
+    elif new_status == "Interview":
+        message = f"Your application for '{job.title}' has moved to Interview round."
+    elif new_status == "Rejected":
+        message = f"Your application for '{job.title}' has been rejected."
+    elif new_status == "Placed":
+        message = f"Congratulations! You have been placed for '{job.title}'."
+
+    if message:
+        notification = Notification(
+            student_id=application.student_id,
+            message=message
+        )
+        db.session.add(notification)
+
+    db.session.commit()
+    flash(f"Application status updated to {new_status}")
+
+    if session.get("role") == "admin":
+        return redirect(url_for("admin_dashboard"))
+
+    return redirect(url_for("view_applicants", job_id=job.id))
+
 @app.route("/update_job_status/<int:job_id>/<string:new_status>")
 def update_job_status(job_id, new_status):
     if session.get("role") != "company":
@@ -556,81 +695,6 @@ def update_job_status(job_id, new_status):
     db.session.commit()
     flash(f"Job status updated to {new_status}")
     return redirect(url_for("company_dashboard"))
-
-@app.route("/shortlist/<int:application_id>")
-def shortlist(application_id):
-    if session.get("role") != "company":
-        flash("Please login as company")
-        return redirect(url_for("login"))
-
-    application = Application.query.get_or_404(application_id)
-    job = Job.query.get(application.job_id)
-
-    if job.company_id != session.get("company_id"):
-        flash("You cannot update this application")
-        return redirect(url_for("company_dashboard"))
-
-    application.status = "Shortlisted"
-
-    notification = Notification(
-        student_id=application.student_id,
-        message=f"Your application for '{job.title}' has been shortlisted."
-    )
-    db.session.add(notification)
-
-    db.session.commit()
-    flash("Application shortlisted")
-    return redirect(url_for("view_applicants", job_id=job.id))
-
-@app.route("/select/<int:application_id>")
-def select_application(application_id):
-    if session.get("role") != "company":
-        flash("Please login as company")
-        return redirect(url_for("login"))
-
-    application = Application.query.get_or_404(application_id)
-    job = Job.query.get(application.job_id)
-
-    if job.company_id != session.get("company_id"):
-        flash("You cannot update this application")
-        return redirect(url_for("company_dashboard"))
-
-    application.status = "Selected"
-
-    notification = Notification(
-        student_id=application.student_id,
-        message=f"Congratulations! You have been selected for '{job.title}'."
-    )
-    db.session.add(notification)
-
-    db.session.commit()
-    flash("Application selected")
-    return redirect(url_for("view_applicants", job_id=job.id))
-
-@app.route("/reject/<int:application_id>")
-def reject(application_id):
-    if session.get("role") != "company":
-        flash("Please login as company")
-        return redirect(url_for("login"))
-
-    application = Application.query.get_or_404(application_id)
-    job = Job.query.get(application.job_id)
-
-    if job.company_id != session.get("company_id"):
-        flash("You cannot update this application")
-        return redirect(url_for("company_dashboard"))
-
-    application.status = "Rejected"
-
-    notification = Notification(
-        student_id=application.student_id,
-        message=f"Your application for '{job.title}' has been rejected."
-    )
-    db.session.add(notification)
-
-    db.session.commit()
-    flash("Application rejected")
-    return redirect(url_for("view_applicants", job_id=job.id))
 
 if __name__ == "__main__":
     app.run(debug=True)

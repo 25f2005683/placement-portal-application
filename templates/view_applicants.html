@@ -5,132 +5,103 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body class="bg-light">
 
 <div class="container py-5">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Applicants for {{ job.title }}</h2>
+            <a href="{{ url_for('company_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Applicants for "{{ job.title }}"</h2>
-        <a href="{{ url_for('company_dashboard') }}" class="btn btn-secondary">Back</a>
-    </div>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-info">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <!-- Job Details Card -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h4 class="mb-3">{{ job.title }}</h4>
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Role:</strong> {{ job.role }}</p>
-                    <p><strong>Package:</strong> {{ job.package }}</p>
-                    <p><strong>Location:</strong> {{ job.location }}</p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong>Eligibility CGPA:</strong> {{ job.eligibility_cgpa }}</p>
-                    <p><strong>Status:</strong> 
-                        <span class="badge {% if job.status == 'Active' %}bg-success{% else %}bg-secondary{% endif %}">
-                            {{ job.status }}
-                        </span>
-                    </p>
-                    <p><strong>Total Applicants:</strong> {{ applicants|length }}</p>
-                </div>
+        {% if applicants %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Branch</th>
+                            <th>CGPA</th>
+                            <th>Skills</th>
+                            <th>Resume</th>
+                            <th>Status</th>
+                            <th>Update Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for applicant in applicants %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ applicant.full_name }}</td>
+                                <td>{{ applicant.email }}</td>
+                                <td>{{ applicant.branch }}</td>
+                                <td>{{ applicant.cgpa }}</td>
+                                <td>{{ applicant.skills if applicant.skills else "N/A" }}</td>
+                                <td>
+                                    {% if applicant.resume_filename %}
+                                        <a href="{{ url_for('static', filename='uploads/' + applicant.resume_filename) }}" target="_blank" class="btn btn-sm btn-primary">
+                                            View Resume
+                                        </a>
+                                    {% else %}
+                                        <span class="text-danger">No Resume</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge
+                                        {% if applicant.status == 'Applied' %}bg-primary
+                                        {% elif applicant.status == 'Shortlisted' %}bg-warning text-dark
+                                        {% elif applicant.status == 'Interview' %}bg-info text-dark
+                                        {% elif applicant.status == 'Placed' %}bg-success
+                                        {% elif applicant.status == 'Rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ applicant.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if applicant.status == 'Placed' or applicant.status == 'Rejected' %}
+                                        <button class="btn btn-secondary btn-sm w-100" disabled>
+                                            Final Status Reached
+                                        </button>
+                                    {% else %}
+                                        <div class="d-grid gap-2">
+                                            <a href="{{ url_for('update_application_status', application_id=applicant.application_id, new_status='Shortlisted') }}"
+                                               class="btn btn-warning btn-sm {% if applicant.status == 'Shortlisted' %}disabled{% endif %}">
+                                                Shortlist
+                                            </a>
+                                            <a href="{{ url_for('update_application_status', application_id=applicant.application_id, new_status='Interview') }}"
+                                               class="btn btn-info btn-sm {% if applicant.status == 'Interview' %}disabled{% endif %}">
+                                                Interview
+                                            </a>
+                                            <a href="{{ url_for('update_application_status', application_id=applicant.application_id, new_status='Placed') }}"
+                                               class="btn btn-success btn-sm {% if applicant.status == 'Placed' %}disabled{% endif %}">
+                                                Mark Placed
+                                            </a>
+                                            <a href="{{ url_for('update_application_status', application_id=applicant.application_id, new_status='Rejected') }}"
+                                               class="btn btn-danger btn-sm {% if applicant.status == 'Rejected' %}disabled{% endif %}">
+                                                Reject
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            <p><strong>Required Skills:</strong> {{ job.required_skills if job.required_skills else "N/A" }}</p>
-            <p><strong>Description:</strong> {{ job.description if job.description else "N/A" }}</p>
-        </div>
+        {% else %}
+            <div class="alert alert-warning">No applicants for this job yet.</div>
+        {% endif %}
     </div>
-
-    {% if applicants %}
-    <div class="card shadow">
-        <div class="card-body table-responsive">
-            <table class="table table-hover align-middle text-center">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Branch</th>
-                        <th>CGPA</th>
-                        <th>Skills</th>
-                        <th>Resume</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for s in applicants %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ s.full_name }}</td>
-                        <td>{{ s.email }}</td>
-                        <td>{{ s.branch }}</td>
-                        <td><span class="badge bg-success">{{ s.cgpa }}</span></td>
-                        <td>
-                            {% if s.skills %}
-                                {{ s.skills }}
-                            {% else %}
-                                <span class="text-muted">N/A</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if s.resume_filename %}
-                                <a href="{{ url_for('static', filename='uploads/' + s.resume_filename) }}" 
-                                   target="_blank" class="btn btn-sm btn-primary">View</a>
-                            {% else %}
-                                <span class="text-danger">No Resume</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge
-                                {% if s.status == 'Applied' %}bg-primary
-                                {% elif s.status == 'Shortlisted' %}bg-warning text-dark
-                                {% elif s.status == 'Selected' %}bg-success
-                                {% elif s.status == 'Rejected' %}bg-danger
-                                {% else %}bg-secondary{% endif %}">
-                                {{ s.status if s.status else "Applied" }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if s.status == "Applied" %}
-                                <a href="{{ url_for('shortlist', application_id=s.application_id) }}" class="btn btn-sm btn-warning mb-1">Shortlist</a>
-                                <a href="{{ url_for('reject', application_id=s.application_id) }}" class="btn btn-sm btn-danger mb-1">Reject</a>
-
-                            {% elif s.status == "Shortlisted" %}
-                                <a href="{{ url_for('select_application', application_id=s.application_id) }}" class="btn btn-sm btn-success mb-1">Select</a>
-                                <a href="{{ url_for('reject', application_id=s.application_id) }}" class="btn btn-sm btn-danger mb-1">Reject</a>
-
-                            {% elif s.status == "Selected" %}
-                                <span class="badge bg-success">Selected</span>
-
-                            {% elif s.status == "Rejected" %}
-                                <span class="badge bg-danger">Rejected</span>
-
-                            {% else %}
-                                <span class="text-muted">No Action</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-
-            </table>
-        </div>
-    </div>
-    {% else %}
-    <div class="alert alert-info text-center">
-        No applicants for this job yet.
-    </div>
-    {% endif %}
-
 </div>
 
 </body>

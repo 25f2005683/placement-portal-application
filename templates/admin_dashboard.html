@@ -46,6 +46,7 @@
                             <th>Location</th>
                             <th>Approved</th>
                             <th>Phone</th>
+                            <th>Status</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -57,15 +58,33 @@
                                 <td>{{ company.email }}</td>
                                 <td>{{ company.industry_type }}</td>
                                 <td>{{ company.location }}</td>
-                                <td>{{ company.approved }}</td>
+                                <td>
+                                    {% if company.approved %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ company.phone }}</td>
+                                <td>
+                                    {% if company.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if not company.approved %}
                                         <a href="/approve_company/{{ company.id }}" class="btn btn-success btn-sm">Approve</a>
                                     {% else %}
                                         <button class="btn btn-secondary btn-sm" disabled>Approved</button>
                                     {% endif %}
-                                    <a href="/deactivate_company/{{ company.id }}" class="btn btn-danger btn-sm">Deactivate</a>
+
+                                    {% if company.is_active %}
+                                        <a href="/deactivate_company/{{ company.id }}" class="btn btn-danger btn-sm">Deactivate</a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>Inactive</button>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -89,6 +108,7 @@
                             <th>Year</th>
                             <th>CGPA</th>
                             <th>Phone</th>
+                            <th>Status</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -103,7 +123,18 @@
                                 <td>{{ student.cgpa }}</td>
                                 <td>{{ student.phone }}</td>
                                 <td>
-                                    <a href="/deactivate_student/{{ student.id }}" class="btn btn-danger btn-sm">Deactivate</a>
+                                    {% if student.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if student.is_active %}
+                                        <a href="/deactivate_student/{{ student.id }}" class="btn btn-danger btn-sm">Deactivate</a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>Inactive</button>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -124,6 +155,8 @@
                             <th>Role</th>
                             <th>Package</th>
                             <th>Eligibility CGPA</th>
+                            <th>Company</th>
+                            <th>Status</th>
                             <th>Location</th>
                             <th>Approval</th>
                         </tr>
@@ -135,12 +168,18 @@
                                 <td>{{ job.role }}</td>
                                 <td>{{ job.package }}</td>
                                 <td>{{ job.eligibility_cgpa }}</td>
+                                <td>{{ job.company.company_name }}</td>
+                                <td>
+                                    <span class="badge {% if job.status == 'Active' %}bg-success{% elif job.status == 'Closed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                        {{ job.status }}
+                                    </span>
+                                </td>
                                 <td>{{ job.location }}</td>
                                 <td>
                                     {% if not job.approved %}
                                         <a href="/approve_job/{{ job.id }}" class="btn btn-success btn-sm">Approve</a>
                                     {% else %}
-                                        Approved
+                                        <span class="badge bg-success">Approved</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -152,10 +191,48 @@
             <div class="alert alert-warning">No jobs posted yet.</div>
         {% endif %}
 
-        <h4 class="mb-3">Total Applications</h4>
-        <div class="alert alert-primary">
-            Total Applications Submitted: {{ applications|length }}
-        </div>
+        <h4 class="mb-3">All Applications</h4>
+        {% if applications %}
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Job Title</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th>Applied At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                            <tr>
+                                <td>{{ application.student.full_name }}</td>
+                                <td>{{ application.student.email }}</td>
+                                <td>{{ application.job.title }}</td>
+                                <td>{{ application.job.company.company_name }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if application.status == 'Applied' %}bg-primary
+                                        {% elif application.status == 'Shortlisted' %}bg-warning text-dark
+                                        {% elif application.status == 'Interview' %}bg-info text-dark
+                                        {% elif application.status == 'Placed' %}bg-success
+                                        {% elif application.status == 'Rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ application.status }}
+                                    </span>
+                                </td>
+                                <td>{{ application.applied_at }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">No applications submitted yet.</div>
+        {% endif %}
+
     </div>
 </div>
 

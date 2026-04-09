@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Application History</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>My Application History</h2>
+            <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+
+        {% if applications %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Job Title</th>
+                            <th>Company</th>
+                            <th>Role</th>
+                            <th>Package</th>
+                            <th>Applied At</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ application.job.title }}</td>
+                                <td>{{ application.job.company.company_name }}</td>
+                                <td>{{ application.job.role }}</td>
+                                <td>{{ application.job.package }}</td>
+                                <td>{{ application.applied_at.strftime('%d-%m-%Y %H:%M') if application.applied_at else 'N/A' }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if application.status == 'Applied' %}bg-primary
+                                        {% elif application.status == 'Shortlisted' %}bg-warning text-dark
+                                        {% elif application.status == 'Interview' %}bg-info text-dark
+                                        {% elif application.status == 'Placed' %}bg-success
+                                        {% elif application.status == 'Rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ application.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">You have not applied to any jobs yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>
